@@ -54,7 +54,11 @@ class Detector {
         val (fw, fh) = faceSize(boardBlobs, w) ?: faceSize(trayBlobs, w) ?: return null
         val (tw, th) = faceSize(trayBlobs, w) ?: (fw to fh)
         val boardLit = litFaces(boardBlobs, fw, fh).filter { it.bottom < tray.top && hasEdgeBelow(cls, w, h, it) }
-        val trayFaces = litFaces(trayBlobs, tw, th).filter { it.centerY < tray.bottom + th / 2 }.sortedBy { it.left }
+        // Hand tiles sit on the bar and show the same 3D edge; the booster buttons
+        // just below it have white rims that must not count as tiles.
+        val trayFaces = litFaces(trayBlobs, tw, th)
+            .filter { it.centerY < tray.bottom && it.centerX in tray.left..tray.right && hasEdgeBelow(cls, w, h, it) }
+            .sortedBy { it.left }
 
         val o = maxOf(1, (fw * 0.035f).roundToInt())
         val hb = measureBand(cls, w, h, boardLit, fw, fh)

@@ -200,7 +200,7 @@ class AutoFruitService : AccessibilityService() {
         shot.getPixels(pixels, 0, w, 0, 0, w, h)
         val started = SystemClock.uptimeMillis()
         val decision = try {
-            bot.decide(RgbImage(w, h, pixels))
+            bot.decide(RgbImage(w, h, pixels), System.currentTimeMillis(), listOfNotNull(overlay.bounds()))
         } catch (e: Exception) {
             Log.e(TAG, "analysis failed", e)
             Decision.Wait("Error: ${e.message}")

@@ -20,8 +20,11 @@ dibuja el propio servicio de accesibilidad.
 
 ## Cómo juega
 
-1. **Captura** la pantalla y espera a que dos capturas seguidas coincidan (nunca
-   actúa durante animaciones).
+1. **Captura** la pantalla y solo juega cuando la zona del tablero y la bandeja
+   es idéntica píxel a píxel a la captura anterior: nunca decide mientras una
+   ficha vuela a la bandeja, un trío desaparece o una ficha se ilumina. Una
+   fruta que no reconoce (nueva o a medio animar) se espera a que se vea quieta
+   antes de aprenderla.
 2. **Detecta** las fichas (`core/.../Detector.kt`):
    - Fichas iluminadas (seleccionables): zonas del color crema de la cara.
    - Fichas tapadas: son la misma ficha oscurecida (multiplicada por un factor
@@ -55,6 +58,10 @@ en las tapadas, y el orden del plan). Con esas imágenes se puede ajustar el
 detector: añádelas a `core/src/test/resources` y a `DetectorTest`.
 
 ## Desarrollo
+
+- Reproducir una grabación de pantalla con el bot y ver qué decidiría en cada
+  fotograma: `ffmpeg -i video.mp4 -vf fps=10 frames/%04d.png` y luego
+  `./gradlew :core:test --tests '*VideoReplayTest*' -Dautofruit.frames=$PWD/frames`.
 
 - `core/`: Kotlin puro (detección, reconocimiento, solver), con tests sobre
   capturas reales: `./gradlew :core:test` (deja imágenes anotadas en

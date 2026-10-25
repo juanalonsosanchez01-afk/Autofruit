@@ -84,3 +84,23 @@ class LevelChangeTest {
         assertTrue(bot.decide(board, 7500) is Decision.Tap)
     }
 }
+
+/** Frames from a screen recording of the bot playing level 3. */
+class VideoFrameTest {
+    @Test
+    fun boosterButtonsAreNotHandTiles() {
+        // Empty hand while the booster buttons below it animate.
+        val f = Detector().detect(TestImages.load("video-0045.jpg").second)!!
+        assertEquals(0, f.tray.size)
+    }
+
+    @Test
+    fun doesNotPlayWhileATileIsLanding() {
+        // An apple is still landing in the hand (blurred, with sparkles): its fruit
+        // can't be read yet, so the bot must wait rather than invent a new fruit.
+        val img = TestImages.load("video-0295.jpg").second
+        val bot = Bot()
+        repeat(2) { i -> assertTrue(bot.decide(img, i * 100L) is Decision.Wait) }
+        assertEquals(12, bot.library.size)
+    }
+}

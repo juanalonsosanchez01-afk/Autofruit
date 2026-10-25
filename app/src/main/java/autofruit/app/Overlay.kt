@@ -83,6 +83,13 @@ class Overlay(
         }
     }
 
+    /** Where the button and its label are on screen, so screenshots can ignore them. */
+    fun bounds(): autofruit.core.Rect? {
+        if (!shown) return null
+        val m = (8 * density).toInt()
+        return autofruit.core.Rect(params.x - m, params.y - m, params.x + root.width + m, params.y + root.height + m)
+    }
+
     fun setRunning(running: Boolean) {
         button.text = if (running) "■" else "▶"
         button.background = GradientDrawable().apply {

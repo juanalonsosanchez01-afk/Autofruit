@@ -20,6 +20,7 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
     // Debug images rendered by the tests land here.
+    listOf("autofruit.frames", "autofruit.fps").forEach { k -> System.getProperty(k)?.let { systemProperty(k, it) } }
     System.getProperty("autofruit.writeSeeds")?.let { systemProperty("autofruit.writeSeeds", it) }
     systemProperty("autofruit.debugDir", layout.buildDirectory.dir("debug").get().asFile.absolutePath)
     testLogging {
