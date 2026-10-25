@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Autofruit</string>
+    <string name="service_description">Autofruit mira la pantalla del minijuego de fichas de frutas de Widgetable y toca las fichas por ti. Solo actúa cuando lo enciendes con el botón flotante o la notificación.</string>
+</resources>

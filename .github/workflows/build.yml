@@ -1,0 +1,40 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Test and build
+        run: ./gradlew --no-daemon :core:test :app:assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: autofruit-apk
+          path: app/build/outputs/apk/release/app-release.apk
+
+      - name: Publish as release "latest"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk autofruit.apk
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest autofruit.apk --prerelease --target "$GITHUB_SHA" \
+            --title "Autofruit (última versión)" \
+            --notes "APK generado automáticamente desde ${GITHUB_REF_NAME} (${GITHUB_SHA::7})."
