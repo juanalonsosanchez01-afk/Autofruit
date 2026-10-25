@@ -36,8 +36,51 @@ class PhoneTest {
     }
 
     @Test
+    fun onlyTapsLitTiles() {
+        // Hand: lettuce, lettuce, garlic. Lit lettuces are on the board: finish the triple,
+        // and every tap of the batch must be a lit tile.
+        val d = decide("phone-l3.png")
+        assertEquals(d.frame.tray[0].type, d.tile.type)
+        assertTrue(d.taps.all { it.lit })
+    }
+
+    @Test
     fun endOfLevelOne() {
         val d = decide("phone-l1-end.jpg")
         assertEquals(d.frame.tray[0].type, d.tile.type)
+    }
+}
+
+class PhoneTimingTest {
+    @Test
+    fun timing() {
+        for (name in listOf("phone-l3.png", "level11.jpg")) {
+            val img = TestImages.load(name).second
+            val bot = Bot()
+            repeat(6) { i ->
+                val t0 = System.nanoTime()
+                val f = Detector().detect(img)!!
+                val t1 = System.nanoTime()
+                bot.decide(img, i * 10_000L)
+                val t2 = System.nanoTime()
+                println("$name detect=${(t1 - t0) / 1_000_000}ms decide=${(t2 - t1) / 1_000_000}ms tiles=${f.board.size}")
+            }
+        }
+    }
+}
+
+class LevelChangeTest {
+    @Test
+    fun waitsFiveSecondsForTheNextLevel() {
+        val board = TestImages.load("phone-l3.png").second
+        val blank = RgbImage(board.width, board.height, IntArray(board.width * board.height) { 0xFFD4F5A8.toInt() })
+        val bot = Bot()
+        bot.decide(board, 0)
+        assertTrue(bot.decide(board, 400) is Decision.Tap)
+        assertTrue(bot.decide(blank, 1000) is Decision.Wait)
+        assertTrue(bot.decide(board, 2000) is Decision.Wait)
+        assertTrue(bot.decide(board, 6000) is Decision.Wait)
+        bot.decide(board, 7100)
+        assertTrue(bot.decide(board, 7500) is Decision.Tap)
     }
 }

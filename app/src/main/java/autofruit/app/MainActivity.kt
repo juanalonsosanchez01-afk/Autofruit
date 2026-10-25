@@ -77,20 +77,20 @@ class MainActivity : Activity() {
         fun showDelay() { delayLabel.text = "Pausa tras cada toque: ${prefs.tapDelayMs} ms" }
         showDelay()
         col.addView(SeekBar(this).apply {
-            max = 1200
-            progress = prefs.tapDelayMs - 300
+            max = 1100
+            progress = prefs.tapDelayMs - 100
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
-                    if (fromUser) { prefs.tapDelayMs = 300 + p; showDelay() }
+                    if (fromUser) { prefs.tapDelayMs = 100 + p; showDelay() }
                 }
                 override fun onStartTrackingTouch(s: SeekBar?) {}
                 override fun onStopTrackingTouch(s: SeekBar?) {}
             })
         })
-        para("Si el bot toca antes de que la ficha llegue a la bandeja, sube la pausa.")
+        para("Si el bot falla toques porque va demasiado rápido para tu móvil, sube la pausa.")
 
         title("4. Jugar")
-        para("Abre el nivel en Widgetable y pulsa el botón flotante ▶ (o \"Iniciar\" en la notificación). Arrastra el botón para moverlo, pero no lo dejes encima de las fichas. El bot se para solo si la bandeja se llena o el tablero queda vacío.")
+        para("Abre el nivel en Widgetable y pulsa el botón flotante ▶ (o \"Iniciar\" en la notificación). Arrastra el botón para moverlo, pero no lo dejes encima de las fichas. Al acabar un nivel espera 5 s y sigue con el siguiente; solo se para si la bandeja se llena.")
         toggle = button("") {
             AutoFruitService.instance?.toggle()
             col.postDelayed({ refresh() }, 200)

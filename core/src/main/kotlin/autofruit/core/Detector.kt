@@ -136,7 +136,8 @@ class Detector {
         val sat = Sat(w, h)
         val tolerance = (g.fw * g.fh * 0.04f).toInt() + 4
         var layer = 1
-        while (layer < 40) {
+        // Deeper layers barely matter for planning and cost time on every screenshot.
+        while (layer <= 12) {
             val remaining = blobs(cls, w, h, DF, covered, area).filter { it.count >= minPixels }
             if (remaining.isEmpty()) break
             sat.build(cls, covered)
@@ -204,8 +205,7 @@ class Detector {
         val rad = maxOf(1, g.fw / 8)
         val iw = (g.fw * 0.2f).toInt()
         val ih = (g.fh * 0.2f).toInt()
-        var best: Fit? = null
-        for (fy in y0..y1) for (fx in x0..x1) {
+        fun score(fx: Int, fy: Int): Fit {
             val faceIn = Rect(fx + c, fy + c, fx + g.fw - c, fy + g.fh - c)
             val icon = Rect(fx + iw, fy + ih, fx + g.fw - iw, fy + g.fh - ih)
             val bandBottom = fy + g.fh + g.hb
@@ -225,8 +225,18 @@ class Detector {
                 pos += 3 * s.sum(Sat.P_OUT, st)
                 bad += s.sum(Sat.P_BAD, st) + s.sum(Sat.P_DF, st)
             }
-            val score = pos - 3 * bad
-            if (best == null || score > best.score) best = Fit(b, g, fx, fy, score, bad)
+            return Fit(b, g, fx, fy, pos - 3 * bad, bad)
+        }
+        // Coarse grid first, then every position around the best coarse one.
+        var best: Fit? = null
+        for (fy in y0..y1 step 2) for (fx in x0..x1 step 2) {
+            val f = score(fx, fy)
+            if (best == null || f.score > best.score) best = f
+        }
+        val cx = best!!.x; val cy = best.y
+        for (fy in maxOf(y0, cy - 1)..minOf(y1, cy + 1)) for (fx in maxOf(x0, cx - 1)..minOf(x1, cx + 1)) {
+            val f = score(fx, fy)
+            if (f.score > best!!.score) best = f
         }
         return best!!
     }
@@ -327,15 +337,21 @@ class Detector {
 
         fun build(cls: ByteArray, masked: BooleanArray) {
             val sw = w + 1
-            for (p in planes.indices) {
-                val s = planes[p]
-                for (y in 0 until h) {
-                    var run = 0
-                    for (x in 0 until w) {
-                        val i = y * w + x
-                        if (!masked[i] && plane(cls[i].toInt()) == p) run++
-                        s[(y + 1) * sw + x + 1] = s[y * sw + x + 1] + run
+            val run = IntArray(4)
+            for (y in 0 until h) {
+                run.fill(0)
+                val row = (y + 1) * sw
+                val prev = y * sw
+                for (x in 0 until w) {
+                    val i = y * w + x
+                    if (!masked[i]) {
+                        val p = plane(cls[i].toInt())
+                        if (p >= 0) run[p]++
                     }
+                    planes[0][row + x + 1] = planes[0][prev + x + 1] + run[0]
+                    planes[1][row + x + 1] = planes[1][prev + x + 1] + run[1]
+                    planes[2][row + x + 1] = planes[2][prev + x + 1] + run[2]
+                    planes[3][row + x + 1] = planes[3][prev + x + 1] + run[3]
                 }
             }
         }

@@ -41,8 +41,10 @@ dibuja el propio servicio de accesibilidad.
    primera jugada y se vuelve a mirar el tablero.
 5. **Toca** la ficha con `dispatchGesture`.
 
-Si un toque no cambia nada, prueba otra ficha. Se para solo si se llena la
-bandeja o se vacía el tablero.
+Si un toque no cambia nada, prueba otra ficha. Las jugadas seguidas sobre
+fichas ya iluminadas (hasta 3) se tocan en ráfaga sin volver a mirar. Al
+terminar un nivel espera 5 s a que aparezca el siguiente y sigue; solo se para
+si se llena la bandeja.
 
 ## Depuración
 

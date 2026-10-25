@@ -13,9 +13,9 @@ package autofruit.core
  */
 class Solver(
     private val capacity: Int = 7,
-    private val beamWidth: Int = 250,
-    private val maxDepth: Int = 30,
-    private val timeBudgetMs: Long = 600,
+    private val beamWidth: Int = 150,
+    private val maxDepth: Int = 24,
+    private val timeBudgetMs: Long = 250,
 ) {
     class Plan(val moves: List<Int>, val score: Double)
 
@@ -43,8 +43,14 @@ class Solver(
      * [types] is the fruit of each board tile (-1 when unknown), [above] lists for
      * each tile the tiles lying on top of it, [tray] the fruits already in hand.
      * Tiles listed in [avoid] are not picked first (e.g. taps that did nothing).
+     * [lit] marks the tiles that can be picked right now; a covered tile is only
+     * ever picked after the tiles found on top of it are gone, and one with nothing
+     * found on top (the detector missed what covers it) is never picked.
      */
-    fun solve(types: IntArray, above: Array<IntArray>, tray: List<Int>, avoid: Set<Int> = emptySet()): Plan? {
+    fun solve(
+        types: IntArray, above: Array<IntArray>, tray: List<Int>, avoid: Set<Int> = emptySet(),
+        lit: BooleanArray = BooleanArray(types.size) { above[it].isEmpty() },
+    ): Plan? {
         val n = types.size
         val nTypes = maxOf(types.maxOrNull() ?: -1, tray.maxOrNull() ?: -1) + 1
         val below = Array(n) { ArrayList<Int>() }
@@ -53,7 +59,7 @@ class Solver(
 
         val trayCounts = IntArray(nTypes)
         for (t in tray) if (t >= 0) trayCounts[t]++
-        val root = Node(null, -1, BooleanArray(n), IntArray(n) { above[it].size }, trayCounts,
+        val root = Node(null, -1, BooleanArray(n), IntArray(n) { if (lit[it]) 0 else maxOf(1, above[it].size) }, trayCounts,
             tray.size, 0, 0, 0L)
 
         // Completing a triple can never hurt: it frees two slots and only ever

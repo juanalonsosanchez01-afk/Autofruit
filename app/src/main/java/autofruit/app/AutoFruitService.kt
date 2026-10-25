@@ -19,6 +19,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.Display
 import android.view.accessibility.AccessibilityEvent
@@ -173,7 +174,8 @@ class AutoFruitService : AccessibilityService() {
 
             override fun onFailure(errorCode: Int) {
                 Log.w(TAG, "screenshot failed: $errorCode")
-                later(gen, 500)
+                // Usually the minimum interval between screenshots; retry shortly.
+                later(gen, 120)
             }
         })
     }
@@ -196,12 +198,14 @@ class AutoFruitService : AccessibilityService() {
         val h = shot.height
         if (pixels.size != w * h) pixels = IntArray(w * h)
         shot.getPixels(pixels, 0, w, 0, 0, w, h)
+        val started = SystemClock.uptimeMillis()
         val decision = try {
             bot.decide(RgbImage(w, h, pixels))
         } catch (e: Exception) {
             Log.e(TAG, "analysis failed", e)
             Decision.Wait("Error: ${e.message}")
         }
+        val elapsed = SystemClock.uptimeMillis() - started
         if (frameOf(decision) != null) {
             lastShot?.recycle()
             lastShot = shot
@@ -213,12 +217,14 @@ class AutoFruitService : AccessibilityService() {
         when (decision) {
             is Decision.Tap -> {
                 val f = decision.frame
-                status("Mano ${f.tray.size}/${prefs.capacity} · ${f.board.size} fichas")
-                tap(decision.x.toFloat(), decision.y.toFloat()) { later(gen, prefs.tapDelayMs.toLong()) }
+                status("Mano ${f.tray.size}/${prefs.capacity} · ${f.board.size} fichas · ${elapsed} ms")
+                tapAll(decision.taps.map { it.face.centerX.toFloat() to it.face.centerY.toFloat() }, gen) {
+                    later(gen, prefs.tapDelayMs.toLong())
+                }
             }
             is Decision.Wait -> {
                 status(decision.reason)
-                later(gen, 350)
+                later(gen, SCREENSHOT_INTERVAL_MS)
             }
             is Decision.Stop -> {
                 status(decision.reason)
@@ -237,10 +243,23 @@ class AutoFruitService : AccessibilityService() {
         handler.postDelayed({ capture(gen) }, ms)
     }
 
+    /** Taps the points one after another, each once the previous gesture has finished. */
+    private fun tapAll(points: List<Pair<Float, Float>>, gen: Int, done: () -> Unit) {
+        if (points.isEmpty() || !running || gen != generation) {
+            done()
+            return
+        }
+        val (x, y) = points.first()
+        tap(x, y) {
+            if (points.size == 1) done()
+            else handler.postDelayed({ tapAll(points.drop(1), gen, done) }, BETWEEN_TAPS_MS)
+        }
+    }
+
     private fun tap(x: Float, y: Float, done: () -> Unit) {
         val path = Path().apply { moveTo(x, y) }
         val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0, 50))
+            .addStroke(GestureDescription.StrokeDescription(path, 0, 40))
             .build()
         val sent = dispatchGesture(gesture, object : GestureResultCallback() {
             override fun onCompleted(gestureDescription: GestureDescription?) = done()
@@ -289,6 +308,10 @@ class AutoFruitService : AccessibilityService() {
         private const val TAG = "Autofruit"
         private const val CHANNEL = "autofruit"
         private const val NOTIFICATION_ID = 1
+
+        /** Android refuses accessibility screenshots taken closer together than ~1/3 s. */
+        private const val SCREENSHOT_INTERVAL_MS = 340L
+        private const val BETWEEN_TAPS_MS = 90L
         const val ACTION_TOGGLE = "autofruit.app.TOGGLE"
         const val ACTION_DEBUG = "autofruit.app.DEBUG"
 

@@ -13,8 +13,8 @@ class Prefs(context: Context) {
 
     /** Pause after each tap so the tile can fly to the hand. */
     var tapDelayMs: Int
-        get() = sp.getInt("tapDelay", 600)
-        set(v) = sp.edit().putInt("tapDelay", v).apply()
+        get() = sp.getInt("tapDelayMs", 250)
+        set(v) = sp.edit().putInt("tapDelayMs", v).apply()
 
     var overlayX: Int
         get() = sp.getInt("overlayX", -1)
