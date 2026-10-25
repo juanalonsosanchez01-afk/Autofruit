@@ -1,0 +1,43 @@
+package autofruit.core
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+/** Screenshots taken on the phone while the bot was playing. */
+class PhoneTest {
+    private fun decide(name: String): Decision.Tap {
+        val (bi, img) = TestImages.load(name)
+        val bot = Bot()
+        bot.decide(img, 0)
+        val d = bot.decide(img, 1)
+        assertTrue(d is Decision.Tap, "$name: $d")
+        TestImages.debug(bi, d.frame, name.substringBefore('.') + "-plan", d.plan.map { d.frame.board.indexOf(it) })
+        // Nothing new should have been learned: every fruit is in the catalogue.
+        assertEquals(12, bot.library.size, "$name learned duplicate fruit types")
+        return d
+    }
+
+    @Test
+    fun finishesATriple() {
+        // Hand: avocado, apple, apple, garlic, banana, banana; a lit apple and a lit banana
+        // are on the board. Either finishes a triple; anything else loses.
+        val d = decide("phone-l2-tray6.png")
+        assertEquals(2, d.frame.tray.count { it.type == d.tile.type })
+    }
+
+    @Test
+    fun handOfFiveTakesAPair() {
+        // Hand: avocado, apple, garlic, banana, banana. Taking a lettuce or garlic would
+        // leave six in hand with no finish in sight; avocado or apple pairs with the hand.
+        val d = decide("phone-l2-tray5.jpg")
+        val hand = d.frame.tray.map { it.type }
+        assertTrue(d.tile.type == hand[0] || d.tile.type == hand[1], "picked type ${d.tile.type}, hand $hand")
+    }
+
+    @Test
+    fun endOfLevelOne() {
+        val d = decide("phone-l1-end.jpg")
+        assertEquals(d.frame.tray[0].type, d.tile.type)
+    }
+}

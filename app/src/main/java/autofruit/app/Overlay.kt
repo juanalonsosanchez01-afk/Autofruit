@@ -17,9 +17,15 @@ import kotlin.math.abs
 /**
  * Floating start/stop button drawn by the accessibility service (so it needs no
  * extra "draw over other apps" permission). Drag it to move it; keep it off the
- * tiles, since taps there would hit the button instead of the game.
+ * tiles, since taps there would hit the button instead of the game. A long
+ * press saves a debug capture.
  */
-class Overlay(private val service: AccessibilityService, private val prefs: Prefs, private val onToggle: () -> Unit) {
+class Overlay(
+    private val service: AccessibilityService,
+    private val prefs: Prefs,
+    private val onToggle: () -> Unit,
+    private val onLongPress: () -> Unit,
+) {
     private val wm = service.getSystemService(WindowManager::class.java)
     private val density = service.resources.displayMetrics.density
     private val button = TextView(service)
@@ -46,7 +52,7 @@ class Overlay(private val service: AccessibilityService, private val prefs: Pref
         label.setPadding((6 * density).toInt(), (2 * density).toInt(), (6 * density).toInt(), (2 * density).toInt())
         label.background = GradientDrawable().apply {
             cornerRadius = 8 * density
-            setColor(0xAA000000.toInt())
+            setColor(0xDD1E3A6E.toInt())
         }
         root.orientation = LinearLayout.VERTICAL
         root.gravity = Gravity.CENTER_HORIZONTAL
@@ -96,28 +102,40 @@ class Overlay(private val service: AccessibilityService, private val prefs: Pref
         var downX = 0f; var downY = 0f
         var startX = 0; var startY = 0
         var dragging = false
+        var longPressed = false
+        val longPress = Runnable {
+            if (!dragging) {
+                longPressed = true
+                onLongPress()
+            }
+        }
         button.setOnTouchListener { _: View, e: MotionEvent ->
             when (e.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     downX = e.rawX; downY = e.rawY
                     startX = params.x; startY = params.y
                     dragging = false
+                    longPressed = false
+                    button.postDelayed(longPress, ViewConfiguration.getLongPressTimeout().toLong())
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = e.rawX - downX; val dy = e.rawY - downY
                     if (dragging || abs(dx) > slop || abs(dy) > slop) {
                         dragging = true
+                        button.removeCallbacks(longPress)
                         params.x = (startX + dx).toInt()
                         params.y = (startY + dy).toInt()
                         if (shown) wm.updateViewLayout(root, params)
                     }
                 }
                 MotionEvent.ACTION_UP -> {
+                    button.removeCallbacks(longPress)
                     if (dragging) {
                         prefs.overlayX = params.x
                         prefs.overlayY = params.y
-                    } else onToggle()
+                    } else if (!longPressed) onToggle()
                 }
+                MotionEvent.ACTION_CANCEL -> button.removeCallbacks(longPress)
             }
             true
         }

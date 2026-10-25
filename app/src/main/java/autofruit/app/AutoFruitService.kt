@@ -15,6 +15,7 @@ import android.graphics.Canvas
 import android.graphics.ColorSpace
 import android.graphics.Path
 import android.graphics.drawable.Icon
+import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
@@ -46,7 +47,7 @@ class AutoFruitService : AccessibilityService() {
     private var generation = 0
     private var pixels = IntArray(0)
 
-    /** Last analysed screenshot, kept for the debug capture. */
+    /** Last screenshot that showed the board, kept for the debug capture. */
     @Volatile
     private var lastShot: Bitmap? = null
     @Volatile
@@ -56,7 +57,7 @@ class AutoFruitService : AccessibilityService() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 ACTION_TOGGLE -> toggle()
-                ACTION_DEBUG -> saveDebug()
+                ACTION_DEBUG -> debugCapture()
             }
         }
     }
@@ -68,7 +69,7 @@ class AutoFruitService : AccessibilityService() {
         worker = HandlerThread("autofruit").also { it.start() }
         handler = Handler(worker.looper)
         executor = Executor { handler.post(it) }
-        overlay = Overlay(this, prefs) { toggle() }
+        overlay = Overlay(this, prefs, onToggle = { toggle() }, onLongPress = { debugCapture() })
         overlay.show()
         val filter = IntentFilter().apply {
             addAction(ACTION_TOGGLE)
@@ -100,6 +101,33 @@ class AutoFruitService : AccessibilityService() {
     fun isRunning() = running
 
     fun toggle() = main.post { setRunning(!running) }
+
+    /** Saves what the bot last saw; works whether it is running or not. */
+    fun debugCapture() {
+        if (running) {
+            saveDebug()
+            return
+        }
+        // Not playing: take a fresh screenshot just for the record, after closing the
+        // notification shade in case that is where the request came from.
+        if (Build.VERSION.SDK_INT >= 31) performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
+        handler.postDelayed({
+            takeScreenshot(Display.DEFAULT_DISPLAY, executor, object : TakeScreenshotCallback {
+                override fun onSuccess(result: ScreenshotResult) {
+                    val shot = try { toSrgb(result) } finally { result.hardwareBuffer.close() } ?: return
+                    val px = IntArray(shot.width * shot.height)
+                    shot.getPixels(px, 0, shot.width, 0, 0, shot.width, shot.height)
+                    val d = runCatching { Bot(library, prefs.capacity).let { b -> b.decide(RgbImage(shot.width, shot.height, px), 0); b.decide(RgbImage(shot.width, shot.height, px), 1) } }.getOrNull()
+                    lastShot?.recycle()
+                    lastShot = shot
+                    lastDecision = d
+                    saveDebug()
+                }
+
+                override fun onFailure(errorCode: Int) = status("No se pudo hacer la captura ($errorCode)")
+            })
+        }, 800)
+    }
 
     fun setRunning(on: Boolean) {
         if (Looper.myLooper() != Looper.getMainLooper()) {
@@ -168,15 +196,19 @@ class AutoFruitService : AccessibilityService() {
         val h = shot.height
         if (pixels.size != w * h) pixels = IntArray(w * h)
         shot.getPixels(pixels, 0, w, 0, 0, w, h)
-        lastShot?.recycle()
-        lastShot = shot
         val decision = try {
             bot.decide(RgbImage(w, h, pixels))
         } catch (e: Exception) {
             Log.e(TAG, "analysis failed", e)
             Decision.Wait("Error: ${e.message}")
         }
-        lastDecision = decision
+        if (frameOf(decision) != null) {
+            lastShot?.recycle()
+            lastShot = shot
+            lastDecision = decision
+        } else {
+            shot.recycle()
+        }
         if (!running || gen != generation) return
         when (decision) {
             is Decision.Tap -> {
@@ -193,6 +225,12 @@ class AutoFruitService : AccessibilityService() {
                 setRunning(false)
             }
         }
+    }
+
+    private fun frameOf(d: Decision) = when (d) {
+        is Decision.Tap -> d.frame
+        is Decision.Wait -> d.frame
+        is Decision.Stop -> d.frame
     }
 
     private fun later(gen: Int, ms: Long) {
@@ -215,7 +253,7 @@ class AutoFruitService : AccessibilityService() {
         handler.post {
             val shot = lastShot
             if (shot == null || shot.isRecycled) {
-                status("Aún no hay captura: enciende el bot primero")
+                status("Aún no he visto el tablero: enciende el bot en el juego")
                 return@post
             }
             val saved = DebugSaver.save(this, shot, lastDecision)

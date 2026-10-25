@@ -179,7 +179,7 @@ class TypeLibrary {
     }
 
     companion object {
-        const val LIT_SAME = 22f
+        const val LIT_SAME = 20f
         const val COVERED_SAME = 26f
 
         /** Library preloaded with the fruits seen in the reference screenshots. */

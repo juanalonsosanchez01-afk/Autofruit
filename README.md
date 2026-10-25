@@ -46,7 +46,8 @@ bandeja o se vacía el tablero.
 
 ## Depuración
 
-"Captura debug" en la notificación guarda en `Imágenes/Autofruit` la captura y
+Mantener pulsado el botón flotante (o "Captura debug" en la notificación) guarda
+en `Imágenes/Autofruit` la última captura en la que se veía el tablero y
 otra imagen con lo que ha entendido el bot (recuadros por fruta, `tipo/capa`
 en las tapadas, y el orden del plan). Con esas imágenes se puede ajustar el
 detector: añádelas a `core/src/test/resources` y a `DetectorTest`.

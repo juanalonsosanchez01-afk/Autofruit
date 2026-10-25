@@ -95,7 +95,7 @@ class MainActivity : Activity() {
             AutoFruitService.instance?.toggle()
             col.postDelayed({ refresh() }, 200)
         }
-        para("¿Falla algo? Pulsa \"Captura debug\" en la notificación cuando el bot se equivoque: se guardan dos imágenes en Imágenes/Autofruit (la captura y lo que ha entendido el bot).")
+        para("¿Falla algo? Mantén pulsado el botón flotante (o \"Captura debug\" en la notificación) cuando el bot se equivoque: se guardan dos imágenes en Imágenes/Autofruit con la última vista del tablero y lo que ha entendido el bot.")
 
         setContentView(ScrollView(this).apply { addView(col) })
     }
